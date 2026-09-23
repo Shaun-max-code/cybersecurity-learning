@@ -1,0 +1,525 @@
+1. ctf-writeups/overthewire-bandit.md
+
+Create the file:
+
+ctf-writeups/overthewire-bandit.md
+
+Then paste this:
+
+# OverTheWire Bandit — Levels 0–13
+
+## Overview
+
+I used OverTheWire Bandit to strengthen my Linux command-line, file-system, permissions, SSH, text-processing, and basic security problem-solving skills.
+
+Bandit is structured as a series of progressively harder Linux challenges. Each level provides a practical problem that requires identifying information in the environment and using Linux tools to obtain the credentials required for the next level.
+
+I completed the challenges through the Bandit 13 stage.
+
+> Environment: Authorized educational CTF environment
+
+---
+
+# Skills Developed
+
+- Linux command line
+- SSH
+- File and directory enumeration
+- Hidden files
+- File permissions
+- File ownership
+- File types
+- `find`
+- `grep`
+- `sort`
+- `uniq`
+- `strings`
+- `file`
+- `cat`
+- `head`
+- `tail`
+- Pipes and redirection
+- Base64 decoding
+- Hexadecimal / character conversion
+- Rotational ciphers
+- Gzip
+- Bzip2
+- Tar archives
+- SSH private keys
+- Systematic enumeration
+
+---
+
+# Level 0 → Level 1
+
+## Objective
+
+Connect to the Bandit server through SSH and retrieve the password stored in the provided file.
+
+## Approach
+
+The first level introduced the basic workflow:
+
+```bash
+ssh bandit0@<host> -p <port>
+
+After connecting, I inspected the current directory and read the relevant file.
+
+Useful commands:
+
+pwd
+ls
+cat readme
+What I learned
+SSH basics
+Remote Linux environments
+Basic file navigation
+Reading files from the command line
+Level 1 → Level 2
+Objective
+
+Retrieve the password from a file whose name begins with -.
+
+Approach
+
+A filename beginning with - can be interpreted by commands as an option rather than a filename.
+
+This required explicitly identifying the file.
+
+Example concept:
+
+cat ./-
+What I learned
+
+Linux commands can interpret certain filenames as command-line options.
+
+Using:
+
+./filename
+
+can make it clear that the argument refers to a file.
+
+Level 2 → Level 3
+Objective
+
+Read a file whose name contains spaces.
+
+Approach
+
+The filename had to be treated as a single argument.
+
+Techniques include:
+
+cat "filename with spaces"
+
+or escaping spaces.
+
+cat filename\ with\ spaces
+What I learned
+
+Shells use spaces to separate arguments, so filenames containing spaces need to be quoted or escaped.
+
+Level 3 → Level 4
+Objective
+
+Find a hidden file inside the inhere directory.
+
+Approach
+
+I used:
+
+cd inhere
+ls -la
+
+The -a option displays hidden files.
+
+The relevant hidden file could then be read with:
+
+cat <hidden-file>
+What I learned
+
+Hidden files in Linux commonly begin with . and are not displayed by a normal ls.
+
+Level 4 → Level 5
+Objective
+
+Identify the human-readable file among multiple files.
+
+Approach
+
+I examined the files and used the file command to determine their types.
+
+file ./*
+
+The relevant file could then be read.
+
+cat <file>
+What I learned
+
+The file command is useful during enumeration because the file extension does not necessarily tell you what type of data a file contains.
+
+Level 5 → Level 6
+Objective
+
+Find a file based on specific properties including:
+
+Human-readable
+Specific file size
+Non-executable
+Approach
+
+I used find to narrow down the candidates.
+
+find inhere -type f -size 1033c
+
+I then verified the candidate using:
+
+file <file>
+
+and read the contents.
+
+What I learned
+
+Instead of manually checking every file, Linux find can search based on properties such as:
+
+File type
+Size
+Name
+Permissions
+Ownership
+
+This was an important introduction to systematic enumeration.
+
+Level 6 → Level 7
+Objective
+
+Find a file somewhere on the system based on:
+
+Owner
+Group
+File size
+Approach
+
+I used:
+
+find / -type f -user bandit7 -group bandit6 -size 33c 2>/dev/null
+
+The search identified the relevant file under:
+
+/var/lib/dpkg/info/
+
+The contents were then read using:
+
+cat <file>
+Important Concepts
+-user
+
+Searches for files owned by a particular user.
+
+-group
+
+Searches for files belonging to a particular group.
+
+-size
+
+Filters based on file size.
+
+2>/dev/null
+
+Redirects error output so that permission-denied messages do not clutter the results.
+
+What I learned
+
+This level was particularly useful for understanding how multiple enumeration conditions can be combined into a single search.
+
+Level 7 → Level 8
+Objective
+
+Find the password inside a large file based on a specific keyword.
+
+Approach
+
+Instead of manually reading the entire file, I used text searching.
+
+grep <keyword> data.txt
+What I learned
+
+grep is extremely useful when searching large amounts of text.
+
+Instead of:
+
+Read everything
+      ↓
+Look manually
+
+I can use:
+
+File
+ ↓
+grep
+ ↓
+Relevant line
+Level 8 → Level 9
+Objective
+
+Identify the line that occurs only once in a file.
+
+Approach
+
+I used text-processing commands such as:
+
+sort data.txt | uniq -u
+Concepts
+sort
+
+Sorts the input.
+
+uniq
+
+Filters repeated lines.
+
+uniq -u
+
+Displays lines that occur only once.
+
+What I learned
+
+Combining Linux commands using pipes allows multiple processing stages to be chained together.
+
+Level 9 → Level 10
+Objective
+
+Find readable information among binary/non-readable data.
+
+Approach
+
+I used:
+
+strings data.txt
+
+and searched the resulting output for useful information.
+
+What I learned
+
+strings extracts sequences of printable characters from binary or otherwise non-text data.
+
+This is useful during basic binary and file enumeration.
+
+Level 10 → Level 11
+Objective
+
+Decode Base64-encoded data.
+
+Approach
+
+I identified the encoded content and decoded it using a Base64 decoder.
+
+Example:
+
+base64 -d
+What I learned
+
+Encoding is not the same as encryption.
+
+Base64 is an encoding mechanism used to represent binary/text data using a restricted character set.
+
+Level 11 → Level 12
+Objective
+
+Decode text that had been transformed using a rotational substitution.
+
+Approach
+
+The challenge required identifying the transformation and reversing it.
+
+I used Linux tools and/or appropriate character transformation techniques to recover the original text.
+
+A useful command for this type of transformation is:
+
+tr
+What I learned
+
+Not every transformed string is encrypted.
+
+Recognizing common encoding and substitution patterns is useful during security investigations and CTFs.
+
+Level 12 → Level 13
+Objective
+
+Recover the password from a file that had been repeatedly compressed and archived using different formats.
+
+Approach
+
+This challenge required identifying the file type at each stage and repeatedly extracting/decompressing it.
+
+The general methodology was:
+
+Compressed / archived file
+        ↓
+Identify format
+        ↓
+Decompress / extract
+        ↓
+Identify new format
+        ↓
+Repeat
+        ↓
+Recover readable data
+
+Useful tools/concepts included:
+
+file
+mv
+gzip
+gunzip
+bzip2
+bunzip2
+tar
+What I learned
+
+The important lesson was not memorizing one command.
+
+The process was:
+
+Identify the current file format.
+Rename the file if necessary.
+Use the appropriate extraction/decompression tool.
+Inspect the resulting file.
+Repeat until the underlying data is recovered.
+
+This introduced a practical approach to analyzing layered or disguised files.
+
+Level 13 → Level 14
+Objective
+
+Use an SSH private key to authenticate to the next Bandit level.
+
+Approach
+
+The challenge introduced SSH private-key authentication.
+
+The general process involved:
+
+Private key
+     ↓
+Correct permissions
+     ↓
+SSH authentication
+     ↓
+Next Bandit account
+
+The private key file needed appropriate permissions before being used.
+
+Example:
+
+chmod 600 <private-key>
+
+Then SSH can use the key for authentication.
+
+What I Learned
+
+SSH authentication does not always require a password.
+
+It can also use public-key cryptography:
+
+Private Key → Client
+Public Key  → Server
+
+The private key must be protected because possession of it may allow authentication as the associated account.
+
+Key Linux Commands Practiced
+Navigation
+pwd
+ls
+ls -la
+cd
+File Reading
+cat
+head
+tail
+less
+File Identification
+file
+strings
+Searching
+find
+grep
+Text Processing
+sort
+uniq
+tr
+Compression / Archives
+gzip
+gunzip
+bzip2
+bunzip2
+tar
+SSH
+ssh
+chmod
+Overall Attack / Problem-Solving Methodology
+
+The Bandit challenges helped develop a repeatable approach:
+
+Read the objective
+       ↓
+Inspect the environment
+       ↓
+Identify relevant files/data
+       ↓
+Determine the property of the data
+       ↓
+Select an appropriate Linux tool
+       ↓
+Process the result
+       ↓
+Verify the result
+       ↓
+Use the discovered information
+       ↓
+Move to the next level
+Major Lessons
+1. Enumeration before action
+
+Before attempting random commands, inspect the environment and understand what is available.
+
+2. Understand Linux tools
+
+Commands such as find, grep, file, strings, sort, and uniq are powerful when their options are understood.
+
+3. Combine commands
+
+Linux pipes allow multiple tools to work together:
+
+command1 | command2 | command3
+4. Identify data before processing it
+
+The file command can reveal what you're actually dealing with before choosing a tool.
+
+5. Security requires problem solving
+
+The challenges were not simply about memorizing commands.
+
+The important skill was:
+
+Determine what information is available, identify what is unusual, and choose the appropriate method to investigate it.
+
+Progress
+Bandit Level	Status
+0 → 1	✅ Completed
+1 → 2	✅ Completed
+2 → 3	✅ Completed
+3 → 4	✅ Completed
+4 → 5	✅ Completed
+5 → 6	✅ Completed
+6 → 7	✅ Completed
+7 → 8	✅ Completed
+8 → 9	✅ Completed
+9 → 10	✅ Completed
+10 → 11	✅ Completed
+11 → 12	✅ Completed
+12 → 13	✅ Completed
+13 → 14	✅ Completed
+Disclaimer
+
+This write-up documents work performed in the authorized OverTheWire educational CTF environment. Techniques and commands should only be used against systems where testing is explicitly permitted.
